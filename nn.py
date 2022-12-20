@@ -1,4 +1,5 @@
-from typing import List
+from math import ceil
+from typing import List, Tuple
 import numpy as np
 
 
@@ -32,13 +33,22 @@ class Network:
     def activation(self, z: np.ndarray) -> np.ndarray:
         return 1 / 1 + np.exp(-z)
 
-    def generate_batch(xs, batch_size: int):
-        pass
+    def generate_batch(
+        xs: np.ndarray, ys: np.ndarray, np: np.ndarray, batch_size: int
+    ) -> Tuple[int, int]:
+        """Generate a batch for stochastic gradient descent.
+        Calling this on a numpy array will shuffle the array in-place,
+        then return the first `batch_size` items in it"""
+        assert batch_size > 0 and batch_size < len(xs) and len(xs) == len(ys)
+        np.random.shuffle(xs)
+        return (xs[:batch_size], ys[:batch_size])
 
     def train(self, xs: np.ndarray, ys: np.ndarray, num_epochs=1000):
+        assert isinstance(num_epochs, int), "#epochs must be an integer"
         for epoch in range(num_epochs):
-            for (x, y) in zip(xs, ys):
-                pass
+            for (x_, y_) in zip(xs, ys):
+                (x, y) = self.generate_batch(x_, y_)
+                print(x, y)
 
     def predict(self, x: np.ndarray) -> np.ndarray:
         a = x  # current activation at layer 0 (input layer)
@@ -50,5 +60,5 @@ class Network:
         return a
 
 
-nn = Network([1, 2, 1])
-print(nn.predict(np.array([[1]])))
+nn = Network([3, 2, 2])
+print(nn.predict(np.array([[1], [2], [3]])))
