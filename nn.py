@@ -21,6 +21,7 @@ class Network:
 
     def __init__(self, layer_sizes: List[int], learn_rate=0.1):
         self.num_layers = len(layer_sizes)
+        assert self.num_layers >= 2
         self.layer_sizes = layer_sizes
         self.learn_rate = learn_rate
 
@@ -179,11 +180,11 @@ class Network:
         losses = [loss_grad_zl]
         # Now, we go backwards from layer L to layer 1, and
         # calculate the loss vector for every layer.
-        for l in range(self.num_layers - 2, 0, -1):
-            w_l = self.weights[l]
+        for l in range(self.num_layers - 3, -1, -1):
+            w_lnext = self.weights[l + 1]
             z_l = weighted_sums[l]
             loss_grad_zl = self.d_activation(z_l) * np.dot(
-                np.transpose(w_l),
+                np.transpose(w_lnext),
                 loss_grad_zl)
             losses.append(loss_grad_zl)
 
@@ -191,12 +192,12 @@ class Network:
         return losses
 
 
-domain = np.linspace(-0.5, 0.5, 100)
+domain = np.linspace(-0.5, 0.5, 500)
 train_xs = np.array([[[i]] for i in domain])
 train_ys = np.array([[[i * 2]] for i in domain])
 
 # TODO: Using [1, 2, 3, 1] as the layer sizes crashes the training loop.
 # Investigate why
-nn = Network([1, 2, 1], 4)
-nn.train(train_xs, train_ys, 50, 10000)
+nn = Network([1, 2, 1], 1)
+nn.train(train_xs, train_ys, 100, 1000)
 print(nn.predict(np.array([[0.2]])))
