@@ -1,5 +1,6 @@
 from typing import List, Tuple
 import numpy as np
+import json
 
 
 def sigmoid(z: np.ndarray):
@@ -29,7 +30,7 @@ class Network:
         self.weights = []
         for l in range(1, self.num_layers):
             nrows, ncols = layer_sizes[l], layer_sizes[l - 1]
-            ws = np.random.rand(nrows, ncols)
+            ws = np.zeros((nrows, ncols))
             self.weights.append(ws)
 
         # initialize biases
@@ -37,7 +38,7 @@ class Network:
         # Input layer does not have any biases
         self.biases = []
         for n_neurons in layer_sizes[1:]:
-            bs = np.random.rand(n_neurons, 1)
+            bs = np.zeros((n_neurons, 1))
             self.biases.append(bs)
 
     def activation(self, z: np.ndarray) -> np.ndarray:
@@ -53,19 +54,19 @@ class Network:
         Calling this on an array will shuffle the array in-place,
         then return the first `batch_size` items in it"""
 
-        assert batch_size > 0 and batch_size < len(xs) and len(xs) == len(ys)
+        assert batch_size > 0 and batch_size <= len(xs) and len(xs) == len(ys)
         np.random.shuffle(xs)
         return (xs[:batch_size], ys[:batch_size])
 
-    def cost(self, pred: np.ndarray, y: np.ndarray) -> np.ndarray:
+    def cost(self, pred: np.ndarray, target: np.ndarray) -> np.ndarray:
         """Quadratic cost function"""
         assert (
-            pred.shape == y.shape
-        ), f"prediction and target must have the same dimensions ({pred.shape}, {y.shape})"
-        return ((pred - y) ** 2) / 2
+            pred.shape == target.shape
+        ), f"prediction and target must have the same dimensions ({pred.shape}, {target.shape})"
+        return ((target - pred) ** 2) / 2
 
     def loss_grad_pred(self, pred: np.ndarray, target: np.ndarray) -> np.ndarray:
-        return target - pred
+        return pred - target
 
     def loss_grad_z(self, weighted_sum_l: np.ndarray, loss_grad_a: np.ndarray):
         """
@@ -85,10 +86,10 @@ class Network:
             a_l_prev = activations[l]
 
             del_w_l = self.learn_rate * np.dot(loss_l, np.transpose(a_l_prev))
-            self.weights[l] -= del_w_l
+            self.weights[l] = self.weights[l] - del_w_l
 
             del_b_l = self.learn_rate * loss_l
-            self.biases[l] -= del_b_l
+            self.biases[l] = self.biases[l] - del_b_l
 
     def train(self, xs: np.ndarray, ys: np.ndarray, batch_size: int, num_epochs=1000):
         assert (
@@ -97,18 +98,18 @@ class Network:
 
         for _ in range(num_epochs):
             (x_batch, y_batch) = self.generate_batch(xs, ys, batch_size)
-            loss = 0
+            avg_loss = 0
             for (train_sample, target) in zip(x_batch, y_batch):
                 output, activations, weighted_sums = self.forward_pass(
                     train_sample)
                 assert (
                     output.shape == target.shape
                 ), "Network output and target have different dimensions"
-                loss += self.cost(output, target)
+                avg_loss += (batch_size / len(xs)) * self.cost(output, target)
                 layerwise_losses = self.backprop_losses(
                     output, weighted_sums, target)
                 self.update_weights(layerwise_losses, activations)
-            print(f"Epoch #{_}: loss = {loss}")
+            print(f"Epoch #{_ + 1}: loss = {avg_loss}")
 
     def forward_pass(self, x: np.ndarray, store_values=True) -> np.ndarray:
         """
@@ -169,7 +170,6 @@ class Network:
         `activations`: A list where the `lth` element is an np.ndarray representing a_l (activation values of inputs to neurons at layer l).
         `target`: Target output
         """
-        # calculate gradient of loss w.r.t final layer output
         loss_grad_a = self.loss_grad_pred(prediction, target)
 
         # calculate gradient of loss w.r.t weighted-sum input of the current layer.
@@ -191,10 +191,12 @@ class Network:
         return losses
 
 
-nn = Network([1, 2, 1])
-N = 1200
-train_xs = np.array([[[i]] for i in range(N)])
-train_ys = np.array([[[i * 2]] for i in range(N)])
-# print(list(zip(train_xs, train_ys)))
-nn.train(train_xs, train_ys, 400)
-# print(nn.predict(np.array([[1]])))
+domain = np.linspace(-0.5, 0.5, 100)
+train_xs = np.array([[[i]] for i in domain])
+train_ys = np.array([[[i * 2]] for i in domain])
+
+# TODO: Using [1, 2, 3, 1] as the layer sizes crashes the training loop.
+# Investigate why
+nn = Network([1, 2, 1], 4)
+nn.train(train_xs, train_ys, 50, 10000)
+print(nn.predict(np.array([[0.2]])))
